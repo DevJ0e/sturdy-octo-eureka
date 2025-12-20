@@ -1,0 +1,1316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Deeper Studio Tech Guide</title>
+    
+    <!-- Tailwind CSS for Styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Import Map: Tells browser where to load React modules from -->
+    <script type="importmap">
+        {
+            "imports": {
+                "react": "https://esm.sh/react@18.2.0",
+                "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
+                "lucide-react": "https://esm.sh/lucide-react@0.263.1"
+            }
+        }
+    </script>
+    
+    <!-- Babel: Compiles JSX in the browser -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <style>
+        /* Custom scrollbar for a darker tech look */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0f172a; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #475569; 
+        }
+        body {
+            background-color: #020617; /* Slate-950 match */
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel" data-type="module">
+        import React, { useState, useEffect } from 'react';
+        import { createRoot } from 'react-dom/client';
+        import { 
+            Mic, Speaker, Server, Wifi, Music, Maximize2, Minimize2, 
+            CheckCircle, Cable, Layers, Radio, Cpu, Monitor, ArrowRight, 
+            Users, Hand, AlertTriangle, Zap, Network, Camera, X, Upload, 
+            Link as LinkIcon 
+        } from 'lucide-react';
+
+        // --- Reusable Visual Components ---
+
+        const SectionTitle = ({ children, icon: Icon }) => (
+            <div className="flex items-center gap-2 mb-4 border-b border-slate-700 pb-2">
+                {Icon && <Icon className="w-6 h-6 text-cyan-400" />}
+                <h2 className="text-xl font-bold text-slate-100 uppercase tracking-wider">{children}</h2>
+            </div>
+        );
+
+        const ConnectionDetailModal = ({ connection, onClose, onUpload, onUrlSave, savedImage }) => {
+            if (!connection) return null;
+            const { source, cable, dest, image } = connection;
+            
+            // State for the URL input
+            const [urlInput, setUrlInput] = useState('');
+            const [showUrlInput, setShowUrlInput] = useState(false);
+
+            // Determine which image to show: Saved State > Hardcoded Prop > Null
+            const activeImage = savedImage || image;
+
+            const handleFileChange = (e) => {
+                const file = e.target.files?.[0];
+                if (file && onUpload) {
+                    onUpload(file);
+                }
+            };
+
+            const handleUrlSubmit = (e) => {
+                e.preventDefault();
+                if (urlInput && onUrlSave) {
+                    onUrlSave(urlInput);
+                    setShowUrlInput(false);
+                }
+            };
+
+            return (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-200" onClick={onClose}>
+                    <div className="bg-slate-900 border border-slate-600 rounded-xl max-w-3xl w-full p-6 shadow-2xl relative" onClick={e => e.stopPropagation()}>
+                        <button onClick={onClose} className="absolute top-4 right-4 text-slate-400 hover:text-white p-1 hover:bg-slate-800 rounded transition-colors z-20">
+                            <X size={24} />
+                        </button>
+                        
+                        <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
+                            <Cable className="text-cyan-400" /> Connection Visual Guide
+                        </h3>
+
+                        {/* Visual Diagram Header */}
+                        <div className="flex flex-col md:flex-row items-center justify-between gap-4 mb-8 bg-slate-950 p-6 rounded-lg border border-slate-800 shadow-inner">
+                            <div className="text-center w-1/3">
+                                <div className="text-cyan-400 font-bold text-lg leading-tight mb-1">{source.device}</div>
+                                <div className="text-slate-400 text-xs uppercase tracking-wide">{source.port}</div>
+                                <div className="text-slate-600 text-[10px] mt-1">{source.loc}</div>
+                            </div>
+                            
+                            <div className="flex flex-col items-center w-1/3">
+                                <div className="text-slate-500 mb-1"><ArrowRight size={24} /></div>
+                                <div className="px-3 py-1.5 rounded-full bg-slate-800 text-white text-xs font-mono border border-slate-600 shadow-sm whitespace-nowrap">{cable.label}</div>
+                                <div className="text-slate-500 text-[10px] mt-1 text-center">{cable.type}</div>
+                            </div>
+                            
+                            <div className="text-center w-1/3">
+                                <div className="text-amber-400 font-bold text-lg leading-tight mb-1">{dest.device}</div>
+                                <div className="text-slate-400 text-xs uppercase tracking-wide">{dest.port}</div>
+                                <div className="text-slate-600 text-[10px] mt-1">{dest.loc}</div>
+                            </div>
+                        </div>
+
+                        {/* Interactive Image Area */}
+                        <div className="space-y-4">
+                            <div className="aspect-video bg-slate-800/50 rounded-lg border-2 border-dashed border-slate-700 overflow-hidden relative flex flex-col items-center justify-center group">
+                                {activeImage ? (
+                                <div className="w-full h-full flex items-center justify-center bg-black relative">
+                                    <img 
+                                    src={activeImage} 
+                                    alt="Connection Visual" 
+                                    className="max-w-full max-h-full object-contain"
+                                    onError={(e) => {
+                                        e.target.onerror = null; 
+                                        e.target.src = "https://placehold.co/600x400/1e293b/475569?text=Image+Load+Error+(Check+URL)";
+                                    }}
+                                    />
+                                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity gap-2">
+                                        <button onClick={() => setShowUrlInput(true)} className="bg-slate-900/90 hover:bg-cyan-600 text-white px-4 py-2 rounded-full flex items-center gap-2 shadow-xl transition-colors">
+                                        <LinkIcon size={16} /> Change URL
+                                        </button>
+                                    </div>
+                                </div>
+                                ) : (
+                                <div className="w-full h-full flex flex-col items-center justify-center text-slate-500 p-4 text-center">
+                                    <Camera size={48} className="text-slate-600 mb-4" />
+                                    <div className="flex flex-col gap-3 w-full max-w-xs">
+                                        {/* URL Input Button */}
+                                        <button 
+                                        onClick={() => setShowUrlInput(true)}
+                                        className="bg-cyan-600 hover:bg-cyan-500 text-white px-4 py-2 rounded font-medium flex items-center justify-center gap-2 transition-colors w-full"
+                                        >
+                                        <LinkIcon size={16} /> Paste Image URL (Best for Sharing)
+                                        </button>
+                                        
+                                        {/* Local File Input */}
+                                        <label className="bg-slate-700 hover:bg-slate-600 text-slate-200 px-4 py-2 rounded font-medium flex items-center justify-center gap-2 transition-colors cursor-pointer w-full">
+                                        <Upload size={16} /> Upload Local File (Temporary)
+                                        <input type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
+                                        </label>
+                                    </div>
+                                    <div className="mt-4 text-[10px] text-slate-500">
+                                        To permanently save an image for everyone, paste its URL in the code's 'PERMANENT_IMAGE_LINKS' section.
+                                    </div>
+                                </div>
+                                )}
+                            </div>
+
+                            {/* URL Input Form */}
+                            {showUrlInput && (
+                                <form onSubmit={handleUrlSubmit} className="flex gap-2 animate-in slide-in-from-top-2 duration-200">
+                                <input 
+                                    type="text" 
+                                    placeholder="Paste image address (e.g., https://i.imgur.com/...jpg)" 
+                                    className="flex-1 bg-slate-950 border border-slate-700 rounded px-4 py-2 text-sm text-white focus:border-cyan-500 outline-none"
+                                    value={urlInput}
+                                    onChange={(e) => setUrlInput(e.target.value)}
+                                    autoFocus
+                                />
+                                <button type="submit" className="bg-cyan-600 text-white px-4 py-2 rounded font-bold text-sm hover:bg-cyan-500">
+                                    Save
+                                </button>
+                                <button type="button" onClick={() => setShowUrlInput(false)} className="bg-slate-800 text-slate-400 px-3 py-2 rounded font-bold text-sm hover:text-white">
+                                    Cancel
+                                </button>
+                                </form>
+                            )}
+                        </div>
+
+                        <div className="mt-6 flex justify-end items-center border-t border-slate-800 pt-4">
+                            <button onClick={onClose} className="px-6 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded font-medium border border-slate-600 transition-colors">
+                                Close
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const ConnectionBlock = ({ source, cable, dest, type = "analog", onSelect, image }) => {
+            // Color coding based on prompt labels
+            let cableColor = "bg-slate-600";
+            let textColor = "text-slate-200";
+            
+            if (cable.label.includes("WHITE")) { cableColor = "bg-slate-200"; textColor = "text-slate-900"; }
+            if (cable.label.includes("BLUE")) { cableColor = "bg-blue-500"; textColor = "text-white"; }
+            if (cable.label.includes("PURPLE")) { cableColor = "bg-purple-500"; textColor = "text-white"; }
+            if (cable.label.includes("ORANGE")) { cableColor = "bg-orange-500"; textColor = "text-white"; }
+            if (cable.label.includes("RED")) { cableColor = "bg-red-500"; textColor = "text-white"; }
+            if (cable.label.includes("GREEN")) { cableColor = "bg-emerald-500"; textColor = "text-white"; }
+            if (cable.label.includes("BLACK")) { cableColor = "bg-slate-900"; textColor = "text-white border border-slate-600"; }
+            if (cable.label.includes("YELLOW")) { cableColor = "bg-yellow-500"; textColor = "text-black"; }
+
+            return (
+                <div 
+                // Pass 'image' to the onSelect handler
+                onClick={() => onSelect && onSelect({ source, cable, dest, image })}
+                className="flex flex-col md:flex-row items-center justify-between bg-slate-800/50 p-4 rounded-lg border border-slate-700 mb-3 shadow-sm hover:border-cyan-500 hover:bg-slate-800 hover:shadow-lg hover:shadow-cyan-900/20 transition-all cursor-pointer group relative overflow-hidden"
+                >
+                <div className="absolute top-0 right-0 p-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Maximize2 size={12} className="text-cyan-500" />
+                </div>
+
+                {/* Source */}
+                <div className="flex-1 w-full md:w-auto text-center md:text-left relative z-10">
+                    <div className="font-bold text-cyan-300 text-sm group-hover:text-cyan-200 transition-colors">{source.device}</div>
+                    <div className="text-xs text-slate-400 group-hover:text-slate-300">{source.port}</div>
+                    {source.loc && <div className="text-[10px] text-slate-500 uppercase tracking-wide mt-1">{source.loc}</div>}
+                </div>
+
+                {/* Cable Visual */}
+                <div className="flex-1 flex flex-col items-center justify-center px-4 py-2 w-full md:w-auto relative z-10">
+                    <div className="text-[10px] text-slate-400 mb-1 group-hover:text-slate-300">{cable.type}</div>
+                    <div className="relative w-full flex items-center justify-center">
+                    <div className="h-0.5 w-full bg-slate-600 absolute group-hover:bg-slate-500 transition-colors"></div>
+                    <div className={`relative z-10 px-3 py-1 rounded-full text-[10px] font-bold uppercase ${cableColor} ${textColor} shadow-md group-hover:scale-105 transition-transform`}>
+                        {cable.label}
+                    </div>
+                    </div>
+                    <ArrowRight className="w-4 h-4 text-slate-500 mt-1 group-hover:text-cyan-400 group-hover:translate-x-1 transition-all" />
+                </div>
+
+                {/* Destination */}
+                <div className="flex-1 w-full md:w-auto text-center md:text-right relative z-10">
+                    <div className="font-bold text-amber-300 text-sm group-hover:text-amber-200 transition-colors">{dest.device}</div>
+                    <div className="text-xs text-slate-400 group-hover:text-slate-300">{dest.port}</div>
+                    {dest.loc && <div className="text-[10px] text-slate-500 uppercase tracking-wide mt-1">{dest.loc}</div>}
+                </div>
+                </div>
+            );
+        };
+
+        const HardwareCard = ({ title, items, icon: Icon }) => (
+            <div className="bg-slate-800 p-4 rounded border border-slate-700">
+                <div className="flex items-center gap-2 mb-3 text-cyan-400">
+                <Icon size={18} />
+                <h3 className="font-bold uppercase text-xs tracking-widest">{title}</h3>
+                </div>
+                <ul className="space-y-1">
+                {items.map((item, idx) => (
+                    <li key={idx} className="text-sm text-slate-300 border-l-2 border-slate-600 pl-2">
+                    {item}
+                    </li>
+                ))}
+                </ul>
+            </div>
+        );
+
+        const StageZone = ({ title, color, children, className = "", onClick }) => (
+            <div 
+                onClick={onClick}
+                className={`relative rounded-lg border border-${color}-500/30 bg-${color}-900/10 p-3 ${className} 
+                ${onClick ? 'cursor-pointer hover:bg-' + color + '-900/20 hover:border-' + color + '-500/60 hover:shadow-lg hover:shadow-' + color + '-500/10 transition-all' : ''}`}
+            >
+                <div className={`absolute -top-2.5 left-3 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-slate-900 text-${color}-400 border border-${color}-500/30 rounded flex items-center gap-1`}>
+                {title} {onClick && <ArrowRight size={8} className="ml-1" />}
+                </div>
+                {children}
+            </div>
+        );
+
+        const PlotIcon = ({ icon: Icon, label, sub, color = "slate", onClick }) => (
+            <div 
+                onClick={(e) => {
+                if (onClick) {
+                    e.stopPropagation();
+                    onClick();
+                }
+                }}
+                className={`flex flex-col items-center justify-center p-2 rounded bg-slate-900/50 border border-slate-700/50 h-full
+                ${onClick ? 'cursor-pointer hover:border-white/40 hover:bg-slate-800 transition-all hover:scale-105' : ''} group`}
+            >
+                <Icon className={`w-5 h-5 text-${color}-400 mb-1 group-hover:text-white transition-colors`} />
+                <span className="text-[10px] font-bold text-slate-200 text-center leading-tight">{label}</span>
+                {sub && <span className="text-[8px] text-slate-500 text-center leading-tight">{sub}</span>}
+            </div>
+        );
+
+        const SpeakerUnit = ({ type, zone, rotation = 0, onClick }) => (
+            <div 
+                onClick={(e) => {
+                if (onClick) {
+                    e.stopPropagation();
+                    onClick();
+                }
+                }}
+                className={`flex flex-col items-center group relative z-10 ${onClick ? 'cursor-pointer' : ''}`}
+            >
+                <div 
+                className={`w-10 h-10 rounded bg-red-900/30 border border-red-500 flex items-center justify-center transition-all shadow-lg shadow-red-900/20
+                ${onClick ? 'group-hover:bg-red-500 group-hover:text-white group-hover:scale-110' : ''}`}
+                style={{ transform: `rotate(${rotation}deg)` }}
+                >
+                <Speaker size={16} className={`text-red-400 ${onClick ? 'group-hover:text-white' : ''}`} />
+                </div>
+                <div className={`mt-1 text-[9px] font-bold text-red-400 uppercase bg-slate-950/80 px-1 rounded border border-red-900/50 ${onClick ? 'group-hover:border-white group-hover:text-white' : ''}`}>{type}</div>
+                {zone && <div className="text-[8px] text-slate-500">{zone}</div>}
+            </div>
+        );
+
+        // --- Main Application ---
+
+        const App = () => {
+            const [activeTab, setActiveTab] = useState('plot'); 
+            const [activeChapter, setActiveChapter] = useState(1);
+            const [selectedConnection, setSelectedConnection] = useState(null);
+            
+            // --- USER CONFIGURATION: IMAGE LINKS ---
+            const PERMANENT_IMAGE_LINKS = {
+                // Example: 'MacBook 4 (REC)-Thunderbolt 3-PreSonus 16R-AVB Control (RJ45)': 'https://drive.google.com/uc?export=download&id=1gf7B3mpJMTUV2Z1p5jC3AfKvWxM6McuK.png',
+            };
+
+            const [userImages, setUserImages] = useState(PERMANENT_IMAGE_LINKS);
+
+            const tabs = [
+                { id: 'plot', label: 'Phase 1: Master Stage Plot', icon: Layers },
+                { id: 'patch', label: 'Phase 2: Interactive Patching', icon: Cable },
+            ];
+
+            const navigateToChapter = (chapterId) => {
+                setActiveTab('patch');
+                setActiveChapter(chapterId);
+            };
+
+            const getConnectionKey = (conn) => {
+                if (!conn) return null;
+                return `${conn.source.device}-${conn.source.port}-${conn.dest.device}-${conn.dest.port}`;
+            };
+
+            const handleUserImageUpload = (connection, file) => {
+                const key = getConnectionKey(connection);
+                const imageUrl = URL.createObjectURL(file);
+                setUserImages(prev => ({
+                ...prev,
+                [key]: imageUrl
+                }));
+            };
+
+            const handleUserUrlSave = (connection, url) => {
+                const key = getConnectionKey(connection);
+                setUserImages(prev => ({
+                ...prev,
+                [key]: url
+                }));
+            };
+
+            const renderPlot = () => (
+                <div className="bg-slate-950 p-6 rounded-xl border border-slate-800 shadow-2xl space-y-8">
+                <div className="flex justify-between items-center border-b border-slate-800 pb-4">
+                    <div>
+                    <h3 className="text-cyan-400 font-bold text-lg uppercase tracking-widest">Master Floor Plan</h3>
+                    <p className="text-slate-500 text-xs mt-1">Updated Layout v6.0 (Dual 18i20 Digital Pit)</p>
+                    </div>
+                    <div className="flex gap-2">
+                    <div className="flex items-center gap-1.5 px-3 py-1 rounded bg-slate-900 border border-slate-700">
+                        <div className="w-2 h-2 rounded-full bg-cyan-500 animate-pulse"></div>
+                        <span className="text-[10px] text-slate-300 font-medium">AUDIO ACTIVE</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 px-3 py-1 rounded bg-slate-900 border border-slate-700">
+                        <Wifi size={10} className="text-emerald-500" />
+                        <span className="text-[10px] text-slate-300 font-medium">RF SYNC</span>
+                    </div>
+                    </div>
+                </div>
+
+                <div className="flex items-center justify-center gap-2 mb-4 bg-slate-900/50 p-2 rounded text-xs text-slate-400 border border-slate-800 border-dashed">
+                    <Hand size={14} className="animate-bounce" /> Click on any zone or equipment to jump to its patch diagram.
+                </div>
+
+                {/* STAGE AREA CONTAINER */}
+                <div className="relative bg-slate-900/50 rounded-lg p-6 border border-slate-800 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-800 via-slate-900 to-slate-950">
+                    <div className="absolute top-2 right-4 text-xs font-bold text-slate-700 uppercase tracking-[0.2em]">Upstage / Back Wall</div>
+                    
+                    <div className="grid grid-cols-12 gap-6 mb-8 mt-4">
+                        
+                        {/* LEFT COLUMN: Main Stage (Span 9) */}
+                        <div className="col-span-12 lg:col-span-9 flex flex-col gap-6">
+                            
+                            {/* 1. CHOIR RISERS (Back) */}
+                            <StageZone title="Choir Risers (Back Wall)" color="cyan" onClick={() => navigateToChapter(2)}>
+                                <div className="grid grid-cols-4 gap-2 mb-4 text-center border-b border-cyan-900/30 pb-2">
+                                    <div className="text-[10px] text-cyan-300 font-bold tracking-wider">SOPRANOS</div>
+                                    <div className="text-[10px] text-cyan-300 font-bold tracking-wider">ALTOS</div>
+                                    <div className="text-[10px] text-cyan-300 font-bold tracking-wider">TENORS</div>
+                                    <div className="text-[10px] text-cyan-300 font-bold tracking-wider">BASSES</div>
+                                </div>
+                                <div className="grid grid-cols-4 gap-4">
+                                    <PlotIcon icon={Mic} label="NTG-3" sub="[W1]" color="cyan" onClick={() => navigateToChapter(2)} />
+                                    <PlotIcon icon={Mic} label="NTG-2" sub="[W2]" color="cyan" onClick={() => navigateToChapter(2)} />
+                                    <PlotIcon icon={Mic} label="NTG-3" sub="[W3]" color="cyan" onClick={() => navigateToChapter(2)} />
+                                    <PlotIcon icon={Mic} label="APEX" sub="[W4]" color="cyan" onClick={() => navigateToChapter(2)} />
+                                </div>
+                            </StageZone>
+
+                            {/* 2. MID-STAGE (Soloists) */}
+                            <div className="flex justify-around items-center px-10 py-6 bg-slate-900/20 border-x border-slate-800/30 rounded">
+                                <div className="flex flex-col items-center">
+                                    <PlotIcon icon={Mic} label="SOLOIST 1" sub="Handheld" color="emerald" onClick={() => navigateToChapter(2)} />
+                                </div>
+                                <div className="border-b border-slate-700 w-full mx-4 opacity-30"></div>
+                                <div className="flex flex-col items-center">
+                                    <PlotIcon icon={Mic} label="SOLOIST 2" sub="Handheld" color="emerald" onClick={() => navigateToChapter(2)} />
+                                </div>
+                            </div>
+
+                            {/* 3. DOWNSTAGE EDGE (Monitors) */}
+                            <div className="relative p-6 border-t-2 border-slate-600 bg-slate-900/60 rounded-b-lg shadow-inner">
+                                <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-slate-900 border border-slate-500 rounded text-[10px] text-slate-300 font-bold uppercase tracking-wider z-20 shadow-lg">Stage Lip / Front Edge</div>
+                                <div className="flex justify-around items-end pt-2 relative">
+                                    {/* Link Line */}
+                                    <div className="absolute top-[28px] left-10 right-10 h-px bg-red-500/30 border-t border-dashed border-red-500/50"></div>
+                                    <SpeakerUnit type="MON 1" zone="YXL10P" onClick={() => navigateToChapter(4)} />
+                                    <SpeakerUnit type="MON 2" zone="YXL10P" onClick={() => navigateToChapter(4)} />
+                                    <SpeakerUnit type="MON 3" zone="YXL10P" onClick={() => navigateToChapter(4)} />
+                                </div>
+                            </div>
+
+                        </div>
+
+                        {/* RIGHT COLUMN: Keyboard World (Span 3) */}
+                        <div className="col-span-12 lg:col-span-3">
+                            <StageZone title="Stage Right Keys" color="purple" className="h-full flex flex-col justify-between min-h-[420px]" onClick={() => navigateToChapter(2)}>
+                                <div className="space-y-6 pt-4">
+                                    <div className="bg-purple-900/20 p-4 rounded border border-purple-500/30 text-center text-xs text-purple-300 font-bold shadow-sm hover:bg-purple-900/30 transition-colors">KEYBOARD 1</div>
+                                    <div className="bg-purple-900/20 p-4 rounded border border-purple-500/30 text-center text-xs text-purple-300 font-bold shadow-sm hover:bg-purple-900/30 transition-colors">KEYBOARD 2</div>
+                                    <div className="bg-purple-900/20 p-4 rounded border border-purple-500/30 text-center text-xs text-purple-300 font-bold shadow-sm hover:bg-purple-900/30 transition-colors">KEYBOARD 3</div>
+                                </div>
+                                <div className="mt-auto pb-8 flex justify-center border-t border-purple-500/20 pt-6">
+                                    <SpeakerUnit type="MON 6" zone="YXL10P" rotation={-15} onClick={() => navigateToChapter(4)} />
+                                </div>
+                            </StageZone>
+                        </div>
+                    </div>
+
+                    {/* ORCHESTRA PIT */}
+                    <div className="mb-8">
+                        <StageZone title="Orchestra Pit (Downstage)" color="amber" onClick={() => navigateToChapter(3)}>
+                            <div className="grid grid-cols-3 gap-4 lg:gap-8 pt-2">
+                                {/* Left: Strings */}
+                                <div className="text-center space-y-4 relative">
+                                    <div className="text-[10px] text-amber-400 font-bold uppercase tracking-widest border-b border-amber-500/20 pb-1">Strings</div>
+                                    <div className="grid grid-cols-1 gap-2">
+                                        <div className="p-2 bg-amber-900/20 rounded border border-amber-500/20 text-[9px] text-amber-200">V1 - V4</div>
+                                        <div className="p-2 bg-amber-900/20 rounded border border-amber-500/20 text-[9px] text-amber-200">Viola / Cello</div>
+                                    </div>
+                                    <div className="flex justify-center pt-2">
+                                        <SpeakerUnit type="MON 4" zone="Strings" onClick={() => navigateToChapter(4)} />
+                                    </div>
+                                </div>
+
+                                {/* Center: Conductor */}
+                                <div className="flex flex-col items-center justify-end relative">
+                                    {/* Link Line Background */}
+                                    <div className="absolute bottom-[28px] w-[200%] h-px bg-red-500/30 border-t border-dashed border-red-500/50 z-0"></div>
+
+                                    <div className="mb-auto mt-2 p-3 border-2 border-dashed border-amber-500/30 rounded-full w-20 h-20 flex flex-col items-center justify-center bg-amber-900/10 z-10">
+                                        <Users size={24} className="text-amber-500 mb-1" />
+                                        <span className="text-[8px] text-amber-400 font-bold">PODIUM</span>
+                                    </div>
+                                    <div className="flex justify-center pt-4 z-10">
+                                        <SpeakerUnit type="MON 4" zone="Cond." onClick={() => navigateToChapter(4)} />
+                                    </div>
+                                </div>
+
+                                {/* Right: Winds */}
+                                <div className="text-center space-y-4 relative">
+                                    <div className="text-[10px] text-amber-400 font-bold uppercase tracking-widest border-b border-amber-500/20 pb-1">Winds / Brass</div>
+                                    <div className="grid grid-cols-1 gap-2">
+                                        <div className="p-2 bg-amber-900/20 rounded border border-amber-500/20 text-[9px] text-amber-200">Clarinet / Flute</div>
+                                        <div className="p-2 bg-amber-900/20 rounded border border-amber-500/20 text-[9px] text-amber-200">Trumpet / Timp</div>
+                                    </div>
+                                    <div className="flex justify-center pt-2">
+                                        <SpeakerUnit type="MON 5" zone="Winds" onClick={() => navigateToChapter(4)} />
+                                    </div>
+                                </div>
+                            </div>
+                        </StageZone>
+                    </div>
+
+                    {/* ROW 4: MAIN PA (Pit Edge) */}
+                    <div className="mt-12 pt-4 border-t-2 border-slate-800 relative">
+                        <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-slate-950 text-slate-500 text-[10px] uppercase font-bold tracking-widest border border-slate-800 rounded">Orchestra Pit Edge</div>
+
+                        <div className="grid grid-cols-12 gap-2 items-end">
+                            <div className="col-span-2 flex flex-col items-center"><SpeakerUnit type="OUTFILL L" zone="PS12P" rotation={-30} onClick={() => navigateToChapter(5)} /></div>
+                            <div className="col-span-2 flex flex-col items-center"><SpeakerUnit type="MAIN L" zone="PS12P" onClick={() => navigateToChapter(5)} /></div>
+                            
+                            {/* Center Subs */}
+                            <div className="col-span-4 flex justify-center">
+                                <div 
+                                onClick={() => navigateToChapter(4)}
+                                className="p-3 border-2 border-red-500/50 rounded-lg bg-red-900/20 flex flex-col items-center shadow-[0_0_15px_rgba(239,68,68,0.2)] cursor-pointer hover:bg-red-900/40 transition-colors hover:scale-105"
+                                >
+                                    <div className="text-[9px] text-red-400 font-bold mb-2">SUB STACK (Flex 6)</div>
+                                    <div className="flex flex-col gap-1">
+                                        <div className="w-16 h-8 bg-slate-900 border border-slate-600 rounded flex items-center justify-center text-[8px] text-slate-400">ES12P</div>
+                                        <div className="w-20 h-10 bg-slate-900 border border-slate-600 rounded flex items-center justify-center text-[8px] text-slate-400">ES15P</div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div className="col-span-2 flex flex-col items-center"><SpeakerUnit type="MAIN R" zone="PS12P" onClick={() => navigateToChapter(5)} /></div>
+                            <div className="col-span-2 flex flex-col items-center"><SpeakerUnit type="OUTFILL R" zone="PS12P" rotation={30} onClick={() => navigateToChapter(5)} /></div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* HOUSE / DELAYS */}
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-6 pt-4 relative">
+                    <div className="md:col-span-12 text-center py-6 border-y border-dashed border-slate-800/50 bg-slate-900/20 my-4">
+                        <span className="text-slate-600 text-[10px] uppercase tracking-[1em]">Audience: Front 10 Rows</span>
+                    </div>
+
+                    {/* Delays */}
+                    <div className="md:col-span-12 flex items-center justify-center gap-4 py-2 relative">
+                        <div className="absolute w-full h-px bg-orange-500/30 top-1/2 -z-10"></div>
+                        <div className="bg-slate-950 px-2 text-[9px] text-orange-400 border border-orange-500/30 rounded">35 FEET DELAY LINE (35ms)</div>
+                    </div>
+
+                    <div className="md:col-span-2 md:col-start-2 flex justify-center">
+                        <SpeakerUnit type="DELAY L" zone="PS12P" onClick={() => navigateToChapter(5)} />
+                    </div>
+                    <div className="md:col-span-2 md:col-start-10 flex justify-center">
+                        <SpeakerUnit type="DELAY R" zone="PS12P" onClick={() => navigateToChapter(5)} />
+                    </div>
+
+                    <div className="md:col-span-12 text-center py-6 border-y border-dashed border-slate-800/50 bg-slate-900/20 my-4">
+                        <span className="text-slate-600 text-[10px] uppercase tracking-[1em]">Audience: Rear 10 Rows</span>
+                    </div>
+
+                    {/* NEW TECH DESK LAYOUT */}
+                    <div className="md:col-span-8 md:col-start-3">
+                        <StageZone title="FOH TECH COMMAND DESK" color="blue" onClick={() => navigateToChapter(1)}>
+                        <div className="flex flex-col gap-4 p-2">
+                            
+                            {/* TOP ROW: CORE & WINGS */}
+                            <div className="grid grid-cols-5 gap-2">
+                                <div className="col-span-1 border-r border-slate-700/50 pr-2">
+                                    <PlotIcon icon={Radio} label="Mac 6" sub="RF MGMT" color="blue" onClick={() => navigateToChapter(1)} />
+                                </div>
+                                <div className="col-span-3 grid grid-cols-3 gap-2 px-2">
+                                    <PlotIcon icon={Server} label="Mac 4" sub="REC" color="blue" onClick={() => navigateToChapter(1)} />
+                                    <PlotIcon icon={Monitor} label="Mac 1" sub="FOH MIX" color="blue" onClick={() => navigateToChapter(1)} />
+                                    <PlotIcon icon={Wifi} label="Mac 2" sub="STREAM" color="blue" onClick={() => navigateToChapter(1)} />
+                                </div>
+                                <div className="col-span-1 border-l border-slate-700/50 pl-2">
+                                    <PlotIcon icon={Monitor} label="Mac 5" sub="VISUALS" color="blue" onClick={() => navigateToChapter(1)} />
+                                </div>
+                            </div>
+
+                            {/* MIDDLE ROW: INFRASTRUCTURE */}
+                            <div className="grid grid-cols-2 gap-8 border-y border-slate-700/30 py-2">
+                                <div className="flex justify-center">
+                                    <div className="px-3 py-1 bg-slate-800 rounded border border-slate-600 text-[9px] text-slate-400 flex items-center gap-2">
+                                    <Network size={10} /> NET SWITCH / HUB
+                                    </div>
+                                </div>
+                                <div className="flex justify-center">
+                                    <div className="px-3 py-1 bg-slate-800 rounded border border-slate-600 text-[9px] text-slate-400 flex items-center gap-2">
+                                    <Zap size={10} className="text-yellow-500" /> POWER COND.
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* BOTTOM ROW: RACK SPACE */}
+                            <div className="grid grid-cols-4 gap-2">
+                                <div className="col-span-1">
+                                    <PlotIcon icon={Music} label="Mac 3" sub="KEYS HUB" color="purple" onClick={() => navigateToChapter(2)} />
+                                </div>
+                                <div className="col-span-1">
+                                    <PlotIcon icon={Server} label="16R" sub="MIXER" color="blue" onClick={() => navigateToChapter(1)} />
+                                </div>
+                                <div className="col-span-1">
+                                    {/* REPLACED VGM14 WITH 18i20 #2 */}
+                                    <PlotIcon icon={Cpu} label="18i20 #2" sub="ORCHESTRA" color="amber" onClick={() => navigateToChapter(3)} />
+                                </div>
+                                <div className="col-span-1">
+                                    <PlotIcon icon={Mic} label="Mac 7" sub="SOLO STN" color="emerald" onClick={() => navigateToChapter(2)} />
+                                </div>
+                            </div>
+
+                        </div>
+                        </StageZone>
+                    </div>
+                </div>
+                </div>
+            );
+
+            const renderChapterContent = () => {
+                switch(activeChapter) {
+                case 1:
+                    return (
+                    <div className="space-y-6">
+                        <div className="bg-blue-900/20 p-4 border-l-4 border-blue-500 rounded-r">
+                        <h3 className="text-blue-200 font-bold mb-1">Mission Critical: The Digital Core</h3>
+                        <p className="text-sm text-blue-300">Establish power and data links before running audio copper. All Macs must be on the same subnet (192.168.1.x).</p>
+                        </div>
+                        
+                        <SectionTitle icon={Cable}>The "Data Bundle" Loom</SectionTitle>
+                        <div className="text-sm text-slate-400 mb-2 italic">Bundle these three lines into a single loom to the Rack.</div>
+                        
+                        <ConnectionBlock 
+                        source={{ device: "MacBook 4 (REC)", port: "Thunderbolt 3", loc: "Tech Desk (Center)" }}
+                        cable={{ type: "Ethernet Adapter", label: "PURPLE - AVB" }}
+                        dest={{ device: "PreSonus 16R", port: "AVB Control (RJ45)", loc: "Rack Rear" }}
+                        type="digital"
+                        onSelect={setSelectedConnection}
+                        image="https://placehold.co/800x600/581c87/ffffff?text=AVB+Connection+Example" 
+                        />
+                        <ConnectionBlock 
+                        source={{ device: "MacBook 1 (FOH)", port: "USB-C", loc: "Tech Desk (Center)" }}
+                        cable={{ type: "USB Cable", label: "BLACK - CONTROL" }}
+                        dest={{ device: "PreSonus 16R", port: "USB Control", loc: "Rack Rear" }}
+                        type="digital"
+                        onSelect={setSelectedConnection}
+                        />
+                        <ConnectionBlock 
+                        source={{ device: "MacBook 6 (RF)", port: "Ethernet", loc: "Tech Desk (Left)" }}
+                        cable={{ type: "Cat6 Cable", label: "GREEN - NETWORK" }}
+                        dest={{ device: "Network Switch", port: "RJ45 Port", loc: "Rack Rear" }}
+                        type="digital"
+                        onSelect={setSelectedConnection}
+                        />
+                        
+                        {/* Added 18i20 #2 Link */}
+                        <ConnectionBlock 
+                        source={{ device: "18i20 #2 (Orch)", port: "USB Port", loc: "Rack Rear" }}
+                        cable={{ type: "USB Cable", label: "DIGITAL PIT LINK" }}
+                        dest={{ device: "MacBook 1 (FOH)", port: "USB-C", loc: "Tech Desk (Center)" }}
+                        type="digital"
+                        onSelect={setSelectedConnection}
+                        />
+
+                        <div className="ml-8 md:ml-20 border-l-2 border-slate-700 pl-4 mb-4">
+                            <div className="text-xs text-slate-500 mb-1">SWITCH DISTRIBUTION</div>
+                            <div className="text-slate-300 text-sm">[Network Switch] --Cat6--{'>'} [Wireless Receivers]</div>
+                        </div>
+                        
+                        <div className="relative p-4 bg-slate-800 rounded border border-slate-700 my-4 opacity-75">
+                        <div className="absolute -top-3 left-4 px-2 py-0.5 bg-slate-900 text-slate-400 text-[10px] font-bold border border-slate-700 rounded">SECONDARY CONNECTIONS (USB HUB)</div>
+                        <div className="grid grid-cols-2 gap-4 mt-2">
+                            <div className="text-xs text-slate-400 flex items-center gap-2"><div className="w-2 h-2 bg-slate-500 rounded-full"></div> Mac 2: Stream (Video)</div>
+                            <div className="text-xs text-slate-400 flex items-center gap-2"><div className="w-2 h-2 bg-slate-500 rounded-full"></div> Mac 3: Keys (Audio)</div>
+                            <div className="text-xs text-slate-400 flex items-center gap-2"><div className="w-2 h-2 bg-slate-500 rounded-full"></div> Mac 5: Visuals</div>
+                            <div className="text-xs text-slate-400 flex items-center gap-2"><div className="w-2 h-2 bg-slate-500 rounded-full"></div> Mac 7: Solo/Backup</div>
+                        </div>
+                        </div>
+
+                        <SectionTitle icon={CheckCircle}>Tech Hub Validation</SectionTitle>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div className="bg-slate-800 p-4 rounded border border-slate-700">
+                            <div className="flex items-center gap-2 mb-2 text-yellow-400 font-bold text-xs uppercase"><Zap size={14}/> Power Check</div>
+                            <p className="text-sm text-slate-300">Verify Power Conditioner is ON. All 7 MacBooks must show "Charging" icon.</p>
+                            </div>
+                            <div className="bg-slate-800 p-4 rounded border border-slate-700">
+                            <div className="flex items-center gap-2 mb-2 text-blue-400 font-bold text-xs uppercase"><Cpu size={14}/> Screen Sync</div>
+                            <p className="text-sm text-slate-300">Open <strong>UC Surface</strong> on Mac 1 and <strong>Capture</strong> on Mac 4. Ensure they see the 16R.</p>
+                            </div>
+                            <div className="bg-slate-800 p-4 rounded border border-slate-700">
+                            <div className="flex items-center gap-2 mb-2 text-emerald-400 font-bold text-xs uppercase"><Monitor size={14}/> Visual Check</div>
+                            <p className="text-sm text-slate-300">Ensure Mac 5 (Visuals) has clear line-of-sight to Hall Screens/Projectors.</p>
+                            </div>
+                        </div>
+                    </div>
+                    );
+                case 2:
+                    return (
+                    <div className="space-y-6">
+                        <div className="bg-blue-900/20 p-4 border-l-4 border-blue-500 rounded-r">
+                        <h3 className="text-blue-200 font-bold mb-1">Focus: Primary Vocal Capture</h3>
+                        <p className="text-sm text-blue-300">White Labels for all vocal inputs. Critical Check: +48V ON for Choir, +48V OFF for Soloists.</p>
+                        </div>
+
+                        <SectionTitle icon={Radio}>1. Soloist Patch (Short-Run)</SectionTitle>
+                        <div className="bg-red-900/20 p-3 border-l-4 border-red-500 rounded-r mb-4 flex items-start gap-3">
+                        <div className="bg-red-500 rounded-full p-1 mt-0.5"><AlertTriangle size={12} className="text-white" /></div> 
+                        <div>
+                            <h4 className="text-red-400 font-bold text-sm uppercase">Phantom Power Warning</h4>
+                            <p className="text-xs text-red-200"><strong>CHANNELS 5 & 6: +48V OFF.</strong> EW-D Receivers are self-powered line-level sources.</p>
+                        </div>
+                        </div>
+
+                        <ConnectionBlock 
+                        source={{ device: "EW-D Receiver 1 (Solo 1)", port: "XLR Output", loc: "Rack Rear" }}
+                        cable={{ type: "XLR Cable", label: "WHITE - SOLO 1" }}
+                        dest={{ device: "PreSonus 16R", port: "Input 5 (XLR Female)", loc: "Front Inputs" }}
+                        onSelect={setSelectedConnection}
+                        />
+                        <ConnectionBlock 
+                        source={{ device: "EW-D Receiver 2 (Solo 2)", port: "XLR Output", loc: "Rack Rear" }}
+                        cable={{ type: "XLR Cable", label: "WHITE - SOLO 2" }}
+                        dest={{ device: "PreSonus 16R", port: "Input 6 (XLR Female)", loc: "Front Inputs" }}
+                        onSelect={setSelectedConnection}
+                        />
+                        
+                        <div className="mb-6 ml-8">
+                        <div className="text-xs text-slate-400 flex items-center gap-2">
+                            <Monitor size={12} className="text-blue-400"/> 
+                            <span><strong>Mac 6 Check:</strong> Verify "Link" status in Sennheiser WSM.</span>
+                        </div>
+                        </div>
+
+                        <SectionTitle icon={Mic}>2. Choir Patch (Long-Run)</SectionTitle>
+                        <div className="bg-green-900/20 p-3 border-l-4 border-green-500 rounded-r mb-4 flex items-start gap-3">
+                        <div className="bg-green-500 rounded-full p-1 mt-0.5"><Zap size={12} className="text-white" /></div> 
+                        <div>
+                            <h4 className="text-green-400 font-bold text-sm uppercase">Phantom Power Required</h4>
+                            <p className="text-xs text-green-200"><strong>CHANNELS 1-4: +48V ON.</strong> Condenser mics require power.</p>
+                        </div>
+                        </div>
+                        
+                        <ConnectionBlock 
+                        source={{ device: "Rode NTG-3 (Choir Left)", port: "XLR Male", loc: "Riser Left" }}
+                        cable={{ type: "XLR Cable", label: "WHITE W1" }}
+                        dest={{ device: "PreSonus 16R", port: "Input 1 (XLR Female)", loc: "Tech Desk" }}
+                        onSelect={setSelectedConnection}
+                        />
+                        <ConnectionBlock 
+                        source={{ device: "Rode NTG-3 (Choir Right)", port: "XLR Male", loc: "Riser Right" }}
+                        cable={{ type: "XLR Cable", label: "WHITE W2" }}
+                        dest={{ device: "PreSonus 16R", port: "Input 2 (XLR Female)", loc: "Tech Desk" }}
+                        onSelect={setSelectedConnection}
+                        />
+                        <ConnectionBlock 
+                        source={{ device: "Rode NTG-2 (Choir Center)", port: "XLR Male", loc: "Riser Center" }}
+                        cable={{ type: "XLR Cable", label: "WHITE W3" }}
+                        dest={{ device: "PreSonus 16R", port: "Input 3 (XLR Female)", loc: "Tech Desk" }}
+                        onSelect={setSelectedConnection}
+                        />
+                        <ConnectionBlock 
+                        source={{ device: "APEX176 (Choir Bass)", port: "XLR Male", loc: "Riser Bass" }}
+                        cable={{ type: "XLR Cable", label: "WHITE W4" }}
+                        dest={{ device: "PreSonus 16R", port: "Input 4 (XLR Female)", loc: "Tech Desk" }}
+                        onSelect={setSelectedConnection}
+                        />
+
+                        <SectionTitle icon={CheckCircle}>3. Vocal Validation Test</SectionTitle>
+                        <div className="overflow-hidden rounded-lg border border-slate-700 mb-6">
+                        <table className="w-full text-left text-xs md:text-sm">
+                            <thead className="bg-slate-800 text-slate-300 font-bold uppercase">
+                            <tr>
+                                <th className="p-3">Action</th>
+                                <th className="p-3">Mac 1 (UC Surface)</th>
+                                <th className="p-3">Mac 4 (Capture)</th>
+                            </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-700 bg-slate-900/50">
+                            <tr>
+                                <td className="p-3 text-slate-300">Soloist Grill Scratch</td>
+                                <td className="p-3 text-cyan-400">Signal Bounce Ch 5/6</td>
+                                <td className="p-3 text-red-400">Active Waveform Trk 5/6</td>
+                            </tr>
+                            <tr>
+                                <td className="p-3 text-slate-300">Choir Clap (Podium)</td>
+                                <td className="p-3 text-cyan-400">Signal Bounce Ch 1-4</td>
+                                <td className="p-3 text-red-400">Active Waveform Trk 1-4</td>
+                            </tr>
+                            <tr>
+                                <td className="p-3 text-slate-300">RF Walk to Stage Lip</td>
+                                <td className="p-3 text-green-400">Consistent Signal</td>
+                                <td className="p-3 text-slate-400">No "Red" RF Drops (Mac 6)</td>
+                            </tr>
+                            </tbody>
+                        </table>
+                        </div>
+
+                        <div className="bg-slate-800 p-4 rounded border border-slate-600">
+                        <div className="flex items-center gap-2 mb-2 text-amber-400 font-bold text-xs uppercase"><Music size={14}/> Engineering Note: Room Mud</div>
+                        <p className="text-sm text-slate-300">
+                            Watch the <strong>RTA on Mac 1</strong>. Soloists are behind monitors (Mon 1-3). 
+                            If you see a spike at <strong>250Hz - 400Hz</strong>, cut it slightly to clean up the "room mud".
+                        </p>
+                        </div>
+
+                        {/* Collapsed Keys Section to save space but keep reference */}
+                        <div className="mt-6 pt-6 border-t border-slate-700 opacity-75">
+                            <div className="flex items-center gap-2 mb-2 text-purple-400 font-bold text-xs uppercase"><Music size={14}/> Keys Reference</div>
+                            <div className="text-xs text-slate-400">
+                                Keys 1-3 (Stage Right) --[Blue Snake]--{'>'} Scarlett 18i20 (Desk) --[TRS]--{'>'} 16R In 13-14.
+                            </div>
+                        </div>
+                    </div>
+                    );
+                case 3:
+                    return (
+                    <div className="space-y-6">
+                        <div className="bg-amber-900/20 p-4 border-l-4 border-amber-500 rounded-r">
+                        <h3 className="text-amber-200 font-bold mb-1">Focus: The Digital Orchestra Pit (18i20 #2)</h3>
+                        <p className="text-sm text-amber-300">Replaced analog VGM14 with Digital Interface. Enables multi-track capture for Strings & Winds.</p>
+                        </div>
+
+                        <SectionTitle icon={Radio}>1. Visualizing the Digital Patch</SectionTitle>
+                        
+                        {/* Visual Receiver Rack */}
+                        <div className="bg-slate-900 border border-slate-700 p-4 rounded-lg mb-4">
+                            <div className="text-xs text-slate-500 mb-2 uppercase font-bold tracking-widest">Rack to 18i20 #2 (No Analog Mixer)</div>
+                            <div className="grid grid-cols-1 gap-2">
+                                <div className="flex items-center justify-between border-b border-slate-800 pb-1">
+                                    <span className="text-xs text-amber-500 w-24">Violins 1-4</span>
+                                    <span className="text-[10px] text-slate-400">(4x G4 Receivers)</span>
+                                    <ArrowRight size={10} className="text-slate-600" />
+                                    <span className="text-xs text-white font-mono bg-slate-800 px-2 rounded">18i20 In 1, 2, 3, 4</span>
+                                </div>
+                                <div className="flex items-center justify-between border-b border-slate-800 pb-1">
+                                    <span className="text-xs text-amber-500 w-24">Viola / Cello</span>
+                                    <span className="text-[10px] text-slate-400">(2x G4 Receivers)</span>
+                                    <ArrowRight size={10} className="text-slate-600" />
+                                    <span className="text-xs text-white font-mono bg-slate-800 px-2 rounded">18i20 In 5, 6</span>
+                                </div>
+                                <div className="flex items-center justify-between border-b border-slate-800 pb-1">
+                                    <span className="text-xs text-amber-500 w-24">Flutes 1-2</span>
+                                    <span className="text-[10px] text-slate-400">(2x EW-D Digital)</span>
+                                    <ArrowRight size={10} className="text-slate-600" />
+                                    <span className="text-xs text-white font-mono bg-slate-800 px-2 rounded">18i20 In 7, 8</span>
+                                </div>
+                                <div className="mt-2 text-[10px] text-slate-500 italic">
+                                * Clarinets/Expansion requires ADAT OctoPre Link (Inputs 9-16)
+                                </div>
+                            </div>
+                        </div>
+
+                        <SectionTitle icon={Cable}>2. The Data Link (Virtual Patch)</SectionTitle>
+                        <div className="bg-slate-800 p-3 rounded border border-slate-600 mb-4">
+                        <p className="text-xs text-slate-300">
+                            Instead of mixing on physical knobs, you now mix the orchestra inside <strong>UC Surface</strong> or <strong>Capture</strong>. 
+                            Mac 4 will now see <strong>24+ Tracks</strong> (16R + 18i20) for the audio edit.
+                        </p>
+                        </div>
+
+                        <ConnectionBlock 
+                        source={{ device: "Scarlett 18i20 #2", port: "USB Port", loc: "Rack Rear" }}
+                        cable={{ type: "USB Cable", label: "DIGITAL LINK" }}
+                        dest={{ device: "MacBook 1 (FOH)", port: "USB-C Hub", loc: "Tech Desk" }}
+                        type="digital"
+                        onSelect={setSelectedConnection}
+                        />
+
+                        <SectionTitle icon={Speaker}>3. Pit Monitoring (Wedges)</SectionTitle>
+                        <ConnectionBlock 
+                        source={{ device: "PreSonus 16R", port: "FlexMix 4 (TRS)", loc: "Rack Rear" }}
+                        cable={{ type: "TRS-to-XLR Adapter", label: "RED LABEL" }}
+                        dest={{ device: "MON 4 (Conductor)", port: "Input A", loc: "Pit Center" }}
+                        onSelect={setSelectedConnection}
+                        />
+                        <div className="ml-8 md:ml-20 border-l-2 border-slate-700 pl-4 mb-6">
+                            <div className="text-xs text-slate-500 mb-1">PIT DAISY CHAIN</div>
+                            <div className="text-slate-300 text-sm">[MON 4 Link Out] --XLR--{'>'} [MON 5 (Woodwinds)]</div>
+                        </div>
+
+                        <div className="bg-slate-800 p-4 rounded border border-slate-600">
+                        <div className="flex items-center gap-2 mb-2 text-emerald-400 font-bold text-xs uppercase"><CheckCircle size={14}/> Upgrade Status</div>
+                        <ul className="text-xs text-slate-300 space-y-1">
+                            <li>• <strong>VGM14:</strong> Retired (Spare Backup)</li>
+                            <li>• <strong>18i20 #1:</strong> Keys Hub (Stage Right)</li>
+                            <li>• <strong>18i20 #2:</strong> Orchestra Pit (Rack)</li>
+                            <li>• <strong>Total Digital Tracks:</strong> 24+ (Massive upgrade for Post-Production)</li>
+                        </ul>
+                        </div>
+                    </div>
+                    );
+                case 4:
+                    return (
+                    <div className="space-y-6">
+                        <div className="bg-purple-900/20 p-4 border-l-4 border-purple-500 rounded-r">
+                        <h3 className="text-purple-200 font-bold mb-1">Focus: Digital Soundscape & Stage Monitoring</h3>
+                        <p className="text-sm text-purple-300">Integrating VSTs via Mac 3 and establishing the "Stage Lip" monitor mix.</p>
+                        </div>
+
+                        <SectionTitle icon={Music}>1. Keyboard-to-Mac Hub (Blue Labels)</SectionTitle>
+                        <div className="text-sm text-slate-400 mb-2 italic">Loc: Stage Right {'->'} Tech Desk</div>
+                        
+                        <ConnectionBlock 
+                        source={{ device: "Keyboard 1 (Main Piano)", port: "L/R Out", loc: "Stage Right" }}
+                        cable={{ type: "Dual TRS Cable", label: "BLUE - KBD 1" }}
+                        dest={{ device: "Scarlett 18i20 #1", port: "Inputs 1 & 2", loc: "Tech Desk" }}
+                        onSelect={setSelectedConnection}
+                        />
+                        <ConnectionBlock 
+                        source={{ device: "Keyboard 2 (Synth)", port: "L/R Out", loc: "Stage Right" }}
+                        cable={{ type: "Dual TRS Cable", label: "BLUE - KBD 2" }}
+                        dest={{ device: "Scarlett 18i20 #1", port: "Inputs 3 & 4", loc: "Tech Desk" }}
+                        onSelect={setSelectedConnection}
+                        />
+                        <ConnectionBlock 
+                        source={{ device: "Keyboard 3 (Organ)", port: "L/R Out", loc: "Stage Right" }}
+                        cable={{ type: "Dual TRS Cable", label: "BLUE - KBD 3" }}
+                        dest={{ device: "Scarlett 18i20 #1", port: "Inputs 5 & 6", loc: "Tech Desk" }}
+                        onSelect={setSelectedConnection}
+                        />
+                        <div className="flex justify-center my-4">
+                        <div className="bg-slate-800 p-3 rounded border border-purple-500/50 flex items-center gap-3">
+                            <div className="text-right">
+                                <div className="text-[10px] text-slate-400">INTERFACE</div>
+                                <div className="text-xs font-bold text-white">Scarlett 18i20 #1</div>
+                            </div>
+                            <ArrowRight className="text-purple-500" />
+                            <div className="text-left">
+                                <div className="text-[10px] text-slate-400">PROCESSOR</div>
+                                <div className="text-xs font-bold text-white">Mac 3 (MainStage)</div>
+                            </div>
+                        </div>
+                        </div>
+
+                        <SectionTitle icon={Cable}>2. Return to Main Mixer</SectionTitle>
+                        <ConnectionBlock 
+                        source={{ device: "Scarlett 18i20 #1", port: "Line Out 1 & 2", loc: "Tech Desk" }}
+                        cable={{ type: "TRS-to-XLR Adapters", label: "SHORT PATCH" }}
+                        dest={{ device: "PreSonus 16R", port: "Inputs 7 & 8", loc: "Rack Front" }}
+                        onSelect={setSelectedConnection}
+                        />
+
+                        <SectionTitle icon={Speaker}>3. Stage Monitoring (Red Labels)</SectionTitle>
+                        
+                        {/* Vocal Line */}
+                        <div className="mb-4">
+                            <div className="text-xs font-bold text-slate-300 mb-2 uppercase">A. Vocal/Choir Line (Stage Lip)</div>
+                            <ConnectionBlock 
+                            source={{ device: "16R FlexMix 3", port: "TRS Output", loc: "Rack Rear" }}
+                            cable={{ type: "TRS-to-XLR Adapter", label: "RED - MON LINE" }}
+                            dest={{ device: "MON 1", port: "Input A", loc: "Stage Lip Left" }}
+                            onSelect={setSelectedConnection}
+                            />
+                            <div className="ml-8 md:ml-20 border-l-2 border-slate-700 pl-4">
+                                <div className="text-xs text-slate-500 mb-1">DAISY CHAIN</div>
+                                <div className="text-slate-300 text-sm">[MON 1 Link] --XLR--{'>'} [MON 2] --XLR--{'>'} [MON 3]</div>
+                            </div>
+                        </div>
+
+                        {/* Keys Monitor */}
+                        <div>
+                            <div className="text-xs font-bold text-slate-300 mb-2 uppercase">B. Keyboardist Monitor</div>
+                            <ConnectionBlock 
+                            source={{ device: "16R FlexMix 5", port: "TRS Output", loc: "Rack Rear" }}
+                            cable={{ type: "TRS-to-XLR Adapter", label: "RED - MON 6" }}
+                            dest={{ device: "MON 6", port: "Input A", loc: "Stage Right" }}
+                            onSelect={setSelectedConnection}
+                            />
+                        </div>
+
+                        <SectionTitle icon={CheckCircle}>4. Validation & Engineering</SectionTitle>
+                        <div className="overflow-hidden rounded-lg border border-slate-700 mb-6">
+                        <table className="w-full text-left text-xs md:text-sm">
+                            <thead className="bg-slate-800 text-slate-300 font-bold uppercase">
+                            <tr>
+                                <th className="p-3">Action</th>
+                                <th className="p-3">Mac 3 (MainStage)</th>
+                                <th className="p-3">Mac 1 (UC Surface)</th>
+                            </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-700 bg-slate-900/50">
+                            <tr>
+                                <td className="p-3 text-slate-300">Play Kbd 1</td>
+                                <td className="p-3 text-purple-400">Meters Bounce</td>
+                                <td className="p-3 text-blue-400">Signal Ch 7/8</td>
+                            </tr>
+                            <tr>
+                                <td className="p-3 text-slate-300">Check Stage Lip</td>
+                                <td className="p-3 text-slate-500">N/A</td>
+                                <td className="p-3 text-green-400">Clear in MON 1-3</td>
+                            </tr>
+                            <tr>
+                                <td className="p-3 text-slate-300">Check Kbd Mon</td>
+                                <td className="p-3 text-slate-500">N/A</td>
+                                <td className="p-3 text-green-400">MON 6 "More Me"</td>
+                            </tr>
+                            </tbody>
+                        </table>
+                        </div>
+
+                        <div className="bg-slate-800 p-4 rounded border border-slate-600">
+                        <div className="flex items-center gap-2 mb-2 text-red-400 font-bold text-xs uppercase"><Cpu size={14}/> Engineering Note: Latency</div>
+                        <p className="text-sm text-slate-300">
+                            <strong>Mac 3 Buffer Size:</strong> Set to <strong>128 samples</strong> or lower. Higher latency will cause timing issues between the keyboardists (MON 6) and the rest of the ensemble.
+                        </p>
+                        </div>
+                    </div>
+                    );
+                case 5:
+                    return (
+                    <div className="space-y-6">
+                        <div className="bg-orange-900/20 p-4 border-l-4 border-orange-500 rounded-r">
+                        <h3 className="text-orange-200 font-bold mb-1">Focus: 3,500 Sq Ft Sonic Uniformity</h3>
+                        <p className="text-sm text-orange-300">Deploying the 12-speaker array with Orange Labels. Priority: Clarity over volume to protect the recording.</p>
+                        </div>
+
+                        <SectionTitle icon={Speaker}>1. The Main Array (Zone A & B)</SectionTitle>
+                        <div className="flex items-center gap-2 mb-2 text-xs text-slate-400">
+                        <Zap size={12} className="text-yellow-500"/> Hardware Setting: Set PS12P Rear Panel to <strong>"Club"</strong> or <strong>"Live"</strong> Mode.
+                        </div>
+
+                        {/* Stage Right Array */}
+                        <div className="mb-4">
+                        <div className="text-xs font-bold text-slate-300 mb-1 uppercase">Stage Right Array</div>
+                        <ConnectionBlock 
+                            source={{ device: "PreSonus 16R", port: "Main Out R (XLR)", loc: "Rack Rear" }}
+                            cable={{ type: "XLR Cable", label: "ORANGE - MAIN R" }}
+                            dest={{ device: "Main R (PS12P)", port: "Input A", loc: "Front Right" }}
+                            onSelect={setSelectedConnection}
+                        />
+                        <div className="ml-8 md:ml-20 border-l-2 border-slate-700 pl-4">
+                            <div className="text-xs text-slate-500 mb-1">LINK TO OUTFILL</div>
+                            <div className="text-slate-300 text-sm">[Main R Link Out] --XLR--{'>'} [Outfill R (45°)]</div>
+                        </div>
+                        </div>
+
+                        {/* Stage Left Array */}
+                        <div>
+                        <div className="text-xs font-bold text-slate-300 mb-1 uppercase">Stage Left Array</div>
+                        <ConnectionBlock 
+                            source={{ device: "PreSonus 16R", port: "Main Out L (XLR)", loc: "Rack Rear" }}
+                            cable={{ type: "XLR Cable", label: "ORANGE - MAIN L" }}
+                            dest={{ device: "Main L (PS12P)", port: "Input A", loc: "Front Left" }}
+                            onSelect={setSelectedConnection}
+                        />
+                        <div className="ml-8 md:ml-20 border-l-2 border-slate-700 pl-4">
+                            <div className="text-xs text-slate-500 mb-1">LINK TO OUTFILL</div>
+                            <div className="text-slate-300 text-sm">[Main L Link Out] --XLR--{'>'} [Outfill L (45°)]</div>
+                        </div>
+                        </div>
+
+                        <SectionTitle icon={Layers}>2. Subwoofer Stack (Center Stage)</SectionTitle>
+                        <ConnectionBlock 
+                        source={{ device: "16R FlexMix 6", port: "TRS Output", loc: "Rack Rear" }}
+                        cable={{ type: "TRS-to-XLR Adapter", label: "RED - SUBS" }}
+                        dest={{ device: "ES15P Sub", port: "Input A", loc: "Stage Center Lip" }}
+                        onSelect={setSelectedConnection}
+                        />
+                        <div className="ml-8 md:ml-20 border-l-2 border-slate-700 pl-4 mb-4">
+                            <div className="text-xs text-slate-500 mb-1">STACK LINK</div>
+                            <div className="text-slate-300 text-sm">[ES15P Link Out] --XLR--{'>'} [ES12P Sub]</div>
+                        </div>
+                        <div className="bg-slate-800 p-2 rounded border border-slate-600 inline-block">
+                        <span className="text-xs text-slate-300"><strong>Hardware Crossover:</strong> Set to 80Hz.</span>
+                        </div>
+
+                        <SectionTitle icon={Wifi}>3. The Delay Line (35ms Zone)</SectionTitle>
+                        <div className="bg-blue-900/20 p-3 border-l-4 border-blue-500 rounded-r mb-4">
+                        <h4 className="text-blue-200 font-bold text-xs uppercase mb-1">Software Calibration (Mac 1)</h4>
+                        <p className="text-xs text-blue-100">
+                            Open UC Surface. Go to FlexMix 1 & 2. Set <strong>Output Delay to 35.0 ms</strong>.
+                        </p>
+                        </div>
+
+                        <ConnectionBlock 
+                        source={{ device: "16R FlexMix 1", port: "TRS Output", loc: "Rack Rear" }}
+                        cable={{ type: "TRS-to-XLR Adapter", label: "ORANGE - DLY L" }}
+                        dest={{ device: "Delay L (PS12P)", port: "Input A", loc: "Rear Hall (Left)" }}
+                        onSelect={setSelectedConnection}
+                        />
+                        <ConnectionBlock 
+                        source={{ device: "16R FlexMix 2", port: "TRS Output", loc: "Rack Rear" }}
+                        cable={{ type: "TRS-to-XLR Adapter", label: "ORANGE - DLY R" }}
+                        dest={{ device: "Delay R (PS12P)", port: "Input A", loc: "Rear Hall (Right)" }}
+                        onSelect={setSelectedConnection}
+                        />
+
+                        <SectionTitle icon={CheckCircle}>4. Hall Validation Test</SectionTitle>
+                        <div className="overflow-hidden rounded-lg border border-slate-700 mb-6">
+                        <table className="w-full text-left text-xs md:text-sm">
+                            <thead className="bg-slate-800 text-slate-300 font-bold uppercase">
+                            <tr>
+                                <th className="p-3">Action</th>
+                                <th className="p-3">Observation</th>
+                                <th className="p-3">Requirement</th>
+                            </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-700 bg-slate-900/50">
+                            <tr>
+                                <td className="p-3 text-slate-300">Pink Noise Walk</td>
+                                <td className="p-3 text-slate-400">Walk Front to Back</td>
+                                <td className="p-3 text-green-400">Consistent Volume</td>
+                            </tr>
+                            <tr>
+                                <td className="p-3 text-slate-300">Delay Sync Check</td>
+                                <td className="p-3 text-slate-400">Stand 40ft Back</td>
+                                <td className="p-3 text-green-400">Single "Snap" (No Echo)</td>
+                            </tr>
+                            <tr>
+                                <td className="p-3 text-slate-300">Sub Impact</td>
+                                <td className="p-3 text-slate-400">Play Low Keys</td>
+                                <td className="p-3 text-green-400">Floor Vibrate (No Rattle)</td>
+                            </tr>
+                            </tbody>
+                        </table>
+                        </div>
+
+                        <div className="bg-slate-800 p-4 rounded border border-slate-600">
+                        <div className="flex items-center gap-2 mb-2 text-amber-400 font-bold text-xs uppercase"><AlertTriangle size={14}/> Engineering Note: Standing Waves</div>
+                        <p className="text-sm text-slate-300">
+                            Do not overdrive the Subs. Excessive bass will create standing waves that the Room Mics (Ch 9/10) will capture as a low-frequency hum, ruining the recording.
+                        </p>
+                        </div>
+                    </div>
+                    );
+                case 6:
+                    return (
+                    <div className="space-y-6">
+                        <div className="bg-yellow-900/20 p-4 border-l-4 border-yellow-500 rounded-r">
+                        <h3 className="text-yellow-200 font-bold mb-1">Focus: Global Broadcast & Redundancy</h3>
+                        <p className="text-sm text-yellow-300">Connecting the "Deeper Studio" live mix to the digital world. Yellow Labels for Stream, Purple for Data.</p>
+                        </div>
+
+                        <SectionTitle icon={Wifi}>1. OBS Broadcast Feed (Mac 2)</SectionTitle>
+                        <div className="bg-slate-800 p-2 rounded border border-slate-600 mb-4 inline-block">
+                        <span className="text-xs text-slate-300"><strong>Mixer Setting (Mac 1):</strong> Set FlexMix 7/8 to <strong>"Post-Fader"</strong>.</span>
+                        </div>
+
+                        <ConnectionBlock 
+                        source={{ device: "16R FlexMix 7/8", port: "Dual TRS Output", loc: "Rack Rear" }}
+                        cable={{ type: "Dual TRS Cables", label: "YELLOW - STREAM" }}
+                        dest={{ device: "Scarlett 2i2", port: "Inputs 1 & 2", loc: "Tech Desk (Right)" }}
+                        onSelect={setSelectedConnection}
+                        />
+                        <ConnectionBlock 
+                        source={{ device: "Scarlett 2i2", port: "USB Port", loc: "Tech Desk" }}
+                        cable={{ type: "USB Cable", label: "DATA" }}
+                        dest={{ device: "MacBook 2 (OBS)", port: "USB-C", loc: "Tech Desk" }}
+                        onSelect={setSelectedConnection}
+                        />
+
+                        <SectionTitle icon={Server}>2. Master Capture Safety (Mac 4)</SectionTitle>
+                        <div className="text-sm text-slate-400 mb-2 italic">The "Nerves" of the documentary. 100% Redundancy.</div>
+                        <ConnectionBlock 
+                        source={{ device: "PreSonus 16R", port: "AVB Control (RJ45)", loc: "Rack Rear" }}
+                        cable={{ type: "Cat6 Cable", label: "PURPLE - AVB" }}
+                        dest={{ device: "MacBook 4 (Capture)", port: "Thunderbolt Adapter", loc: "Tech Desk (Center)" }}
+                        type="digital"
+                        onSelect={setSelectedConnection}
+                        />
+                        <div className="ml-8 md:ml-20 border-l-2 border-slate-700 pl-4 mb-4">
+                            <div className="text-xs text-slate-500 mb-1">SOFTWARE CHECK</div>
+                            <div className="text-slate-300 text-sm">Arm "Record All". Verify 16 Red Tracks are glowing.</div>
+                        </div>
+
+                        <SectionTitle icon={Mic}>3. Solo/Engineering Station (Mac 7)</SectionTitle>
+                        <ConnectionBlock 
+                        source={{ device: "16R Phones Out", port: "TRS Stereo", loc: "Rack Front" }}
+                        cable={{ type: "TRS-to-TRS Cable", label: "QC LINK" }}
+                        dest={{ device: "Mac 7 Interface", port: "Input 1/2", loc: "Tech Desk (Far Right)" }}
+                        onSelect={setSelectedConnection}
+                        />
+
+                        <SectionTitle icon={CheckCircle}>4. FINAL VALIDATION: The New "Deeper Studio" Spec</SectionTitle>
+                        
+                        <div className="overflow-hidden rounded-lg border border-slate-700 mb-6">
+                        <table className="w-full text-left text-xs md:text-sm">
+                            <thead className="bg-slate-800 text-slate-300 font-bold uppercase">
+                            <tr>
+                                <th className="p-3">Interface</th>
+                                <th className="p-3">Location/Role</th>
+                                <th className="p-3 text-center">Status</th>
+                            </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-700 bg-slate-900/50">
+                            <tr>
+                                <td className="p-3 text-slate-300 font-bold">18i20 #1</td>
+                                <td className="p-3 text-slate-400">Keys Hub (Mac 3)</td>
+                                <td className="p-3 text-center"><div className="w-4 h-4 bg-green-500 rounded-full mx-auto shadow-[0_0_10px_#22c55e]"></div></td>
+                            </tr>
+                            <tr>
+                                <td className="p-3 text-slate-300 font-bold">18i20 #2</td>
+                                <td className="p-3 text-slate-400">Orchestra Digital Pit (Mac 1)</td>
+                                <td className="p-3 text-center"><div className="w-4 h-4 bg-green-500 rounded-full mx-auto shadow-[0_0_10px_#22c55e]"></div></td>
+                            </tr>
+                            <tr>
+                                <td className="p-3 text-slate-300 font-bold">Scarlett 2i2</td>
+                                <td className="p-3 text-slate-400">Broadcast Feed (Mac 2)</td>
+                                <td className="p-3 text-center"><div className="w-4 h-4 bg-green-500 rounded-full mx-auto shadow-[0_0_10px_#22c55e]"></div></td>
+                            </tr>
+                            <tr>
+                                <td className="p-3 text-slate-300 font-bold">VGM14</td>
+                                <td className="p-3 text-slate-400">Analog Backup (Standby)</td>
+                                <td className="p-3 text-center"><div className="w-4 h-4 bg-yellow-500/50 rounded-full mx-auto"></div></td>
+                            </tr>
+                            </tbody>
+                        </table>
+                        </div>
+
+                        <div className="p-6 bg-green-900/20 border border-green-500/30 rounded-lg text-center mt-8">
+                        <h3 className="text-green-400 font-bold uppercase text-sm mb-4">The "Deeper Studio" Handshake</h3>
+                        <div className="flex flex-col gap-3 text-sm text-slate-300">
+                            <div className="flex items-center justify-center gap-2">
+                                <CheckCircle size={16} className="text-green-500" /> Start Recording on Mac 4 (16R + 18i20 Tracks)
+                            </div>
+                            <div className="flex items-center justify-center gap-2">
+                                <CheckCircle size={16} className="text-green-500" /> Start Local Recording on Mac 2 (Backup)
+                            </div>
+                            <div className="flex items-center justify-center gap-2">
+                                <Users size={16} className="text-green-500" /> Give "Thumbs Up" Visual Cue to Conductor
+                            </div>
+                        </div>
+                        <button className="mt-6 bg-green-600 hover:bg-green-500 text-white px-8 py-3 rounded font-bold transition-colors shadow-lg shadow-green-900/50">
+                            SHOW IS LIVE - RECORDING
+                        </button>
+                        </div>
+                    </div>
+                    );
+                default:
+                    return null;
+                }
+            };
+
+            return (
+                <div className="min-h-screen bg-slate-950 text-slate-200 font-sans p-4 md:p-8">
+                {/* Header */}
+                <header className="mb-8 border-b border-slate-800 pb-6">
+                    <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+                    <div>
+                        <div className="text-xs font-bold text-cyan-500 uppercase tracking-widest mb-1">Deeper Studio 2025</div>
+                        <h1 className="text-3xl md:text-4xl font-extrabold text-white tracking-tight">System Systems Guide</h1>
+                        <p className="text-slate-400 mt-2 max-w-2xl">
+                        Interactive setup manifest for Production Team. Verify all physical patches against the Stage Plot before powering on amps.
+                        </p>
+                    </div>
+                    <div className="flex gap-2">
+                        {tabs.map(tab => (
+                        <button
+                            key={tab.id}
+                            onClick={() => setActiveTab(tab.id)}
+                            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${
+                            activeTab === tab.id 
+                                ? 'bg-cyan-600 text-white shadow-[0_0_15px_rgba(8,145,178,0.4)]' 
+                                : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+                            }`}
+                        >
+                            <tab.icon size={18} />
+                            <span className="hidden md:inline">{tab.label}</span>
+                            <span className="md:hidden">{tab.label.split(':')[0]}</span>
+                        </button>
+                        ))}
+                    </div>
+                    </div>
+                </header>
+
+                {/* Main Content Area */}
+                <main>
+                    {activeTab === 'plot' && renderPlot()}
+                    
+                    {activeTab === 'patch' && (
+                    <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                        {/* Sidebar Navigation for Chapters */}
+                        <nav className="lg:col-span-1 space-y-2">
+                        {[
+                            { id: 1, label: '1. Digital Core & Power' },
+                            { id: 2, label: '2. Stage Inputs (Choir/Solo/Keys)' },
+                            { id: 3, label: '3. Pit Inputs (Digital Upgrade)' },
+                            { id: 4, label: '4. Stage Outputs (Mons/Subs)' },
+                            { id: 5, label: '5. Hall Outputs (Mains)' },
+                            { id: 6, label: '6. Final Validation' },
+                        ].map(chapter => (
+                            <button
+                            key={chapter.id}
+                            onClick={() => setActiveChapter(chapter.id)}
+                            className={`w-full text-left px-4 py-3 rounded border transition-all ${
+                                activeChapter === chapter.id
+                                ? 'bg-slate-800 border-cyan-500 text-cyan-400 shadow-md'
+                                : 'border-transparent text-slate-500 hover:bg-slate-900 hover:text-slate-300'
+                            }`}
+                            >
+                            <div className="font-bold text-sm">{chapter.label}</div>
+                            </button>
+                        ))}
+                        </nav>
+
+                        {/* Interactive Visual Guide */}
+                        <div className="lg:col-span-3 bg-slate-900 rounded-xl border border-slate-800 p-6 min-h-[600px]">
+                        {renderChapterContent()}
+                        </div>
+                    </div>
+                    )}
+                </main>
+
+                {/* Render Modal if a connection is selected */}
+                {selectedConnection && (
+                    <ConnectionDetailModal 
+                    connection={selectedConnection} 
+                    // Pass the user-uploaded image for this connection key
+                    savedImage={selectedConnection ? (userImages[getConnectionKey(selectedConnection)] || selectedConnection.image) : null}
+                    // Pass handler to lift state up
+                    onUpload={(file) => handleUserImageUpload(selectedConnection, file)}
+                    onUrlSave={(url) => handleUserUrlSave(selectedConnection, url)}
+                    onClose={() => setSelectedConnection(null)} 
+                    />
+                )}
+                </div>
+            );
+        };
+
+        // Render the app to the DOM
+        const root = createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
