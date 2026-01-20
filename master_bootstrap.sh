@@ -6,61 +6,77 @@
 # ==============================================================================
 
 set -e
-
-# Define the toolkit directory
 TOOLKIT_DIR="$HOME/odoo-toolkit"
 mkdir -p "$TOOLKIT_DIR"
 cd "$TOOLKIT_DIR"
 
 # ------------------------------------------------------------------------------
-# FILE 1: Core Installation
+# FILE 1: The "Zero-Touch" Installer
 # ------------------------------------------------------------------------------
 cat <<'EOF' > 01_install_odoo.sh
 #!/bin/bash
 set -e
-echo "--- Installing Odoo 19 Core & Dependencies ---"
-sudo apt update && sudo apt upgrade -y
-sudo apt install -y git python3-pip python3-venv python3-dev \
+export PATH=$PATH:/usr/local/sbin:/usr/sbin:/sbin
+
+echo "--- 1. Installing System Dependencies ---"
+apt update && apt upgrade -y
+apt install -y git python3-pip python3-venv python3-dev \
     postgresql-17 postgresql-17-pgvector build-essential \
     libxml2-dev libxslt1-dev zlib1g-dev libsasl2-dev \
     libldap2-dev libssl-dev libffi-dev libjpeg-dev \
-    libpq-dev libtiff5-dev libopenjp2-7-dev liblcms2-dev \
-    libwebp-dev node-less xfonts-75dpi xfonts-base wkhtmltopdf cloud-init
+    libpq-dev node-less xfonts-75dpi xfonts-base fontconfig libxrender1
 
-sudo useradd -m -U -r -d /opt/odoo -s /bin/bash odoo || true
-sudo -u odoo git clone https://www.github.com/odoo/odoo --depth 1 --branch 19.0 /opt/odoo/odoo-server
+echo "--- 2. Patching wkhtmltopdf for Debian 13 ---"
+wget https://github.com/wkhtmltopdf/packaging/releases/download/0.12.6.1-3/wkhtmltox_0.12.6.1-3.bookworm_amd64.deb
+dpkg -i wkhtmltox_0.12.6.1-3.bookworm_amd64.deb || apt install -f -y
+rm wkhtmltox_0.12.6.1-3.bookworm_amd64.deb
 
-cd /opt/odoo
-sudo -u odoo python3 -m venv venv
-sudo -u odoo ./venv/bin/pip install --upgrade pip
-sudo -u odoo ./venv/bin/pip install -r odoo-server/requirements.txt
-sudo -u odoo ./venv/bin/pip install psycopg2-binary num2words
+echo "--- 3. Configuring PostgreSQL Role ---"
+sudo -u postgres psql -tAc "SELECT 1 FROM pg_roles WHERE rolname='odoo'" | grep -q 1 || \
+sudo -u postgres createuser -s odoo
+sudo -u postgres psql -d template1 -c "CREATE EXTENSION IF NOT EXISTS vector;"
 
-# Create Systemd Service
-sudo tee /etc/systemd/system/odoo.service > /dev/null <<SERVICE
+echo "--- 4. Cloning Odoo 19 Source ---"
+useradd -m -U -r -d /opt/odoo -s /bin/bash odoo || true
+rm -rf /opt/odoo/odoo-server
+git clone https://www.github.com/odoo/odoo --depth 1 --branch 19.0 /opt/odoo/odoo-server
+chown -R odoo:odoo /opt/odoo
+
+echo "--- 5. Setting up Virtual Environment ---"
+sudo -u odoo python3 -m venv /opt/odoo/venv
+sudo -u odoo /opt/odoo/venv/bin/pip install --upgrade pip
+sudo -u odoo /opt/odoo/venv/bin/pip install -r /opt/odoo/odoo-server/requirements.txt
+sudo -u odoo /opt/odoo/venv/bin/pip install psycopg2-binary num2words
+
+echo "--- 6. Creating Systemd Service ---"
+cat <<SERVICE | tee /etc/systemd/system/odoo.service
 [Unit]
 Description=Odoo 19
 After=postgresql.service
 [Service]
+Type=simple
 User=odoo
 Group=odoo
 ExecStart=/opt/odoo/venv/bin/python3 /opt/odoo/odoo-server/odoo-bin -c /etc/odoo.conf
+Restart=always
 [Install]
 WantedBy=multi-user.target
 SERVICE
 
-# Create Base Config
-sudo tee /etc/odoo.conf > /dev/null <<CONF
+echo "--- 7. Initializing Config & Starting ---"
+cat <<CONF | tee /etc/odoo.conf
 [options]
 admin_passwd = admin
 db_user = odoo
 proxy_mode = True
 addons_path = /opt/odoo/odoo-server/addons
 CONF
+chown odoo:odoo /etc/odoo.conf
+chmod 640 /etc/odoo.conf
 
-sudo chown odoo: /etc/odoo.conf
-sudo systemctl daemon-reload
-sudo systemctl enable --now odoo
+systemctl daemon-reload
+systemctl enable --now odoo
+echo "SUCCESS: Odoo 19 is active at http://$(hostname -I | awk '{print $1}'):8069"
 EOF
 
 # ------------------------------------------------------------------------------
